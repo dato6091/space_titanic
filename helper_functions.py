@@ -12,6 +12,7 @@ def plot_normalized_percentages(
     ncols: int = 1,
     figsize: tuple = (10, 6),
     label_format: str = ".0f",
+    palette: dict = None
 ) -> None:
     """
     Plots the normalized percentages of categorical features in `feature1`
@@ -29,6 +30,7 @@ def plot_normalized_percentages(
         - ncols (int, optional): Number of subplot columns. Defaults to 1.
         - figsize (tuple, optional): Figure size for the subplots. Defaults to (10,6).
         - label_format (str, optional): Allows to modify the decimal places in the labels on top of the bars.
+        - palette (dict, optional): Dictionary specifying colors for each category in `feature2`. If None, uses Seaborn default.
 
     Returns:
         None: Displays the bar plots and does not return anything.
@@ -39,9 +41,15 @@ def plot_normalized_percentages(
     # Ensure ax is always iterable
     ax = np.ravel(ax)
 
-    columns = feature1
+    # Define default colors (Blue & Orange from the screenshot) if no custom palette is provided
+    if palette is None:
+        unique_categories = df[feature2].dropna().unique()
+        color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']  # Get Matplotlib default colors
+        palette = {category: color_cycle[i % len(color_cycle)] for i, category in enumerate(unique_categories)}
 
-    for i, col in enumerate(columns):
+
+
+    for i, col in enumerate(feature1):
         # Compute normalized percentages
         ct = pd.crosstab(df[col], df[feature2], normalize="index")
         ct_long = ct.reset_index().melt(
@@ -50,7 +58,12 @@ def plot_normalized_percentages(
         ct_long["Percentage"] *= 100
 
         barchart = sns.barplot(
-            data=ct_long, x=col, y="Percentage", hue=feature2, ax=ax[i]
+            data=ct_long, 
+            x=col, 
+            y="Percentage", 
+            hue=feature2, 
+            ax=ax[i], 
+            palette=palette
         )
 
         # Add percentages on bars
