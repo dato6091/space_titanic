@@ -212,13 +212,15 @@ def impute_cryosleep_nulls(df: pd.DataFrame) -> pd.DataFrame:
 def impute_cabin_nulls(df: pd.DataFrame) -> pd.DataFrame:
     """
     Imputes missing values in the 'CabinDeck', 'CabinNumber', and 'CabinSide' columns using a heuristic approach.
+    Additionally, it assigns 'CabinNumber' into 5 groups and imputes missing values based on a predefined probability distribution.
 
     Steps:
     1. Create a dummy column 'CabinMissing' (integer) indicating if the cabin information was originally missing.
     2. If the passenger belongs to a group (GroupSize > 1), use the information from other passengers in the group to impute nulls.
     3. If no group information is available or helpful, impute 'CabinDeck' using the most common value for the corresponding 'HomePlanet'.
-    4. Impute 'CabinNumber' as -1 for missing values.
-    5. Impute 'CabinSide' randomly as 'P' or 'S' with equal probability.
+    4. Assign 'CabinNumber' to a 'CabinNoGroup' based on predefined ranges.
+    5. Impute missing 'CabinNoGroup' using a predefined probability distribution.
+    6. Impute missing 'CabinSide' randomly as 'P' or 'S'.
 
     Args:
         - df (pd.DataFrame): The input DataFrame containing 'CabinDeck', 'CabinNumber', 'CabinSide', 'HomePlanet', and 'GroupSize'.
@@ -226,6 +228,7 @@ def impute_cabin_nulls(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         - pd.DataFrame: A DataFrame with missing cabin values imputed.
     """
+
     df_copy = df.copy()
 
     # Create a dummy column indicating missing cabin information
@@ -262,8 +265,33 @@ def impute_cabin_nulls(df: pd.DataFrame) -> pd.DataFrame:
         ):
             df_copy.at[idx, "CabinDeck"] = deck_mode_by_homeplanet[row["HomePlanet"]]
 
-    # Step 5: Impute missing 'CabinNumber' with -1
-    df_copy["CabinNumber"].fillna(-1, inplace=True)
+    # Assign CabinNoGroup based on CabinNumber
+    def assign_cabin_group(number):
+        if number < 300:
+            return 0
+        elif number < 600:
+            return 1
+        elif number < 1180:
+            return 2
+        elif number < 1700:
+            return 3
+        else:
+            return 4
+
+    df_copy["CabinNoGroup"] = df_copy["CabinNumber"].astype(float).apply(assign_cabin_group)
+
+    # Step 5: Impute missing 'CabinNoGroup' using predefined probabilities
+    missing_cabin_no_group = df_copy["CabinNoGroup"].isna().sum()
+    if missing_cabin_no_group > 0:
+        # Probabilities for each group
+        probabilities = [0.4054, 0.1732, 0.2183, 0.1529, 0.0502]  
+
+        # Randomly assign missing values based on probability distribution
+        df_copy.loc[df_copy["CabinNoGroup"].isna(), "CabinNoGroup"] = np.random.choice(
+            [0, 1, 2, 3, 4], size=missing_cabin_no_group, p=probabilities
+        )
+
+    df_copy.drop(columns='CabinNumber', inplace=True)
 
     # Step 6: Impute missing 'CabinSide' randomly as 'P' or 'S'
     df_copy.loc[df_copy["CabinSide"].isna(), "CabinSide"] = np.random.choice(
@@ -330,35 +358,18 @@ def impute_destination_nulls(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-
-def impute_vip_nulls(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Imputes missing values for the VIP column and creates a new column flagging missing values as 1.
-    The imputation is done by filling missing values with the mode (which in this case is 0).
-
-    Args:
-        - df (pd.DataFrame): Input data frame containing the VIP column with missing values.
-
-    Returns:
-        - pd.DataFrame: A new data frame with missing values imputed and the new column.
-    """
-    df_copy = df.copy()
-    df_copy['VIPMissing'] = df_copy['VIP'].isna().astype(int)
-    vip_mode = df_copy['VIP'].mode()[0]
-    df_copy['VIP'] = df_copy['VIP'].fillna(vip_mode)
-    return df_copy
-
-
-
-
 def impute_age_nulls(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Imputes missing values for the Age column with the median value from the input data frame.
+    Imputes missing values for the 'Age' column with the median value from the input data frame.
     Creates a new column 'AgeMissing' to flag missing values.
-    Creates a new column 'AgeGroup' to bin ages into groups of 10 years (labeled 0-7).
+    Creates a new column 'AgeGroup' with four groups:
+        - 0: Babies (Age == 0)
+        - 1: Children/Teens (1 ≤ Age ≤ 17)
+        - 2: Young Adults (18 ≤ Age ≤ 40)
+        - 3: Adults (34+)
 
     Args:
-        - input_df (pd.DataFrame): The input data frame with the missing values of 'Age'.
+        - df (pd.DataFrame): The input data frame with the missing values of 'Age'.
 
     Returns:
         - pd.DataFrame: A new data frame with missing values imputed and new columns added.
@@ -371,11 +382,26 @@ def impute_age_nulls(df: pd.DataFrame) -> pd.DataFrame:
 
     # Impute missing values with the median
     df_copy['Age'] = df_copy['Age'].fillna(median_age)
-    df_copy['AgeGroup'] = df_copy['Age'].apply(lambda x: str(int(x // 10)))
-    age_categories = [str(i) for i in range(0, 8)]  # Age groups 0-7
+
+    # Define age groups
+    def age_grouping(age):
+        if age == 0:
+            return "0"  # Babies
+        elif 1 <= age <= 17:
+            return "1"  # Children/Teens
+        elif 18 <= age <= 39:
+            return "2"  # Young Adults
+        else:
+            return "3"  # Adults
+
+    # Apply the age grouping
+    df_copy['AgeGroup'] = df_copy['Age'].apply(age_grouping)
 
     # Convert to an ordered categorical variable
+    age_categories = ["0", "1", "2", "3"]
     df_copy['AgeGroup'] = pd.Categorical(df_copy['AgeGroup'], categories=age_categories, ordered=True)
+
+    # Drop the original 'Age' column    
     df_copy.drop(columns='Age', inplace=True)
 
     return df_copy
