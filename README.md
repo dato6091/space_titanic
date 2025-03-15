@@ -1,6 +1,6 @@
 # **🚀 Spaceship Titanic - Passenger Transport Prediction**
 
-![](spaceship.jpeg)
+![](images/spaceship.jpeg)
 ## **📌 Project Overview**
 In this competition, the objective is to **predict whether a passenger was transported to an alternate dimension** during the *Spaceship Titanic's* collision with a spacetime anomaly. 
 
