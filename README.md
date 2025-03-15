@@ -51,5 +51,5 @@ Used for making predictions (~4300 passengers).
 The main study is done in the `space_titanic_notebook.ipynb`, but I have done some extra EDA in a secondary notebook `feature_correlation_exploration.ipynb`. The reader can go through this one or not, as I have taken the main conclusions of it to the main notebook. The reaason behind splitting this was to make the main notebook more digestible and easier for the reader. I have also created a separated file `helper_functions.py` where I am defining all functions that I used in the `feature_correlation_exploration.ipynb` so I can use them in the main notebook without having to define them again.  
 
 ---
-### **🚀Result **
+### **🚀 Result**
 The approach followed achieved an accuracy score of 80.2%
